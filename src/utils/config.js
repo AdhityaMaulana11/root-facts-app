@@ -30,11 +30,11 @@ export const TONE_CONFIG = {
 // Sengaja pakai model kecil (77M param) supaya unduhan cepat dan tetap ringan di browser.
 export const LLM_CONFIG = {
   modelId: 'Xenova/LaMini-Flan-T5-77M',
-  dtype: 'q8',       // quantized 8-bit — lebih kecil tapi kualitas tetap oke
-  maxNewTokens: 100, // cukup untuk satu paragraf pendek
-  temperature: 0.7,
-  topP: 0.9,
-  doSample: true,
+  dtype: 'q8',            // quantized 8-bit — lebih kecil tapi kualitas tetap oke
+  maxNewTokens: 80,       // cukup untuk satu paragraf pendek
+  doSample: false,        // greedy decoding — lebih stabil, tidak looping
+  repetitionPenalty: 1.5, // cegah model mengulang kata yang sama terus-menerus
+  noRepeatNgramSize: 3,   // larang 3-gram yang sama muncul dua kali
 };
 
 // Validasi apakah hasil deteksi layak ditampilkan ke pengguna

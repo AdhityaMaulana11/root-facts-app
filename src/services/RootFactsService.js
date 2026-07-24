@@ -14,7 +14,7 @@ export class RootFactsService {
 
   // Muat model bahasa dari Hugging Face lewat Transformers.js.
   // LaMini-Flan-T5 adalah model text2text-generation (bukan chat),
-  // jadi pipeline-nya berbeda dari model TinyLlama sebelumnya.
+  // jadi pipeline-nya berbeda dari model generatif berbasis chat.
   async loadModel(onProgress) {
     try {
       const device = isWebGPUSupported() ? 'webgpu' : 'wasm';
@@ -22,6 +22,11 @@ export class RootFactsService {
       console.log(`🤖 RootFactsService: pakai device=${device}`);
 
       onProgress && onProgress(10);
+
+      // Track progress per file supaya persentase tidak naik-turun.
+      // Transformers.js mengunduh banyak file paralel (tokenizer, weights, dll),
+      // tiap file laporkan progress 0-1 masing-masing. Kita rata-rata semuanya.
+      const fileProgress = {};
 
       this.generator = await pipeline(
         'text2text-generation', // Flan-T5 pakai text2text, bukan text-generation
@@ -31,7 +36,10 @@ export class RootFactsService {
           device,
           progress_callback: (info) => {
             if (info.status === 'progress' && info.progress != null) {
-              onProgress && onProgress(10 + Math.round(info.progress * 0.88));
+              fileProgress[info.name || 'main'] = info.progress;
+              const values = Object.values(fileProgress);
+              const avg = values.reduce((a, b) => a + b, 0) / values.length;
+              onProgress && onProgress(10 + Math.round(avg * 88));
             }
           },
         }
@@ -56,8 +64,8 @@ export class RootFactsService {
   }
 
   // Buat prompt instruksi langsung (tanpa format chat).
-  // Flan-T5 dilatih untuk mengikuti instruksi teks biasa,
-  // jadi kita cukup tulis perintahnya secara langsung.
+  // Flan-T5 dilatih untuk mengikuti instruksi teks biasa dalam bahasa Inggris.
+  // Kita paksa output bahasa Inggris supaya tidak tercampur bahasa lain.
   _buildPrompt(vegetableName) {
     const toneSuffix = {
       normal: '',
@@ -69,13 +77,13 @@ export class RootFactsService {
     const suffix = toneSuffix[this.currentTone] || '';
 
     return (
-      `Describe one interesting fun fact about ${vegetableName}.${suffix} ` +
-      'Keep the answer under 80 words.'
+      `Answer in English only. Describe one interesting fun fact about ${vegetableName}.${suffix} ` +
+      'Keep the answer under 60 words.'
     );
   }
 
   // Generate fun fact berdasarkan nama sayuran yang terdeteksi.
-  // Output Flan-T5 lebih sederhana — langsung berupa string teks.
+  // Pakai greedy decoding (do_sample: false) supaya output tidak looping/ngaco.
   async generateFacts(vegetableName) {
     if (!this.isReady() || this.isGenerating) return null;
 
@@ -86,9 +94,9 @@ export class RootFactsService {
       // Flan-T5 menerima string biasa sebagai input, bukan array messages
       const output = await this.generator(prompt, {
         max_new_tokens: LLM_CONFIG.maxNewTokens,
-        temperature: LLM_CONFIG.temperature,
-        top_p: LLM_CONFIG.topP,
         do_sample: LLM_CONFIG.doSample,
+        repetition_penalty: LLM_CONFIG.repetitionPenalty,
+        no_repeat_ngram_size: LLM_CONFIG.noRepeatNgramSize,
       });
 
       // Output text2text-generation: [{ generated_text: "..." }]
