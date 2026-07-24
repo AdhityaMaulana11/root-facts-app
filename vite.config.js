@@ -29,30 +29,6 @@ export default defineConfig({
             },
           },
           {
-            // Hugging Face / Transformers.js CDN model files
-            urlPattern: /https:\/\/huggingface\.co\/.*/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'hf-model-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 30,
-              },
-            },
-          },
-          {
-            // Transformers.js CDN (cdn-lfs.huggingface.co)
-            urlPattern: /https:\/\/cdn-lfs\.huggingface\.co\/.*/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'hf-lfs-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 30,
-              },
-            },
-          },
-          {
             // Google Fonts
             urlPattern: /https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/,
             handler: 'CacheFirst',
@@ -93,7 +69,7 @@ export default defineConfig({
             src: '/icons/apple-touch-icon.png',
             sizes: '180x180',
             type: 'image/png',
-            purpose: 'apple touch icon',
+            purpose: 'any',
           },
         ],
         screenshots: [
