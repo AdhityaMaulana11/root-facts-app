@@ -27,14 +27,14 @@ export const TONE_CONFIG = {
 };
 
 // Konfigurasi model bahasa yang dipakai untuk generate fun fact.
-// Sengaja pakai model kecil (77M param) supaya unduhan cepat dan tetap ringan di browser.
+// Pakai fp32 (default) supaya bobot model tidak corrupt — penting untuk encoder-decoder T5.
 export const LLM_CONFIG = {
   modelId: 'Xenova/LaMini-Flan-T5-77M',
-  dtype: 'q8',            // quantized 8-bit — lebih kecil tapi kualitas tetap oke
-  maxNewTokens: 80,       // cukup untuk satu paragraf pendek
-  doSample: false,        // greedy decoding — lebih stabil, tidak looping
-  repetitionPenalty: 1.5, // cegah model mengulang kata yang sama terus-menerus
-  noRepeatNgramSize: 3,   // larang 3-gram yang sama muncul dua kali
+  // dtype sengaja tidak diset, pakai default fp32 — q8/q4 bikin output corrupt di T5
+  maxNewTokens: 80,
+  numBeams: 2,        // beam search jauh lebih stabil dari greedy untuk model T5
+  earlyStop: true,    // berhenti begitu beam terbaik selesai
+  repetitionPenalty: 1.3,
 };
 
 // Validasi apakah hasil deteksi layak ditampilkan ke pengguna

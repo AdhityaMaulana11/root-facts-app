@@ -13,8 +13,9 @@ export class RootFactsService {
   }
 
   // Muat model bahasa dari Hugging Face lewat Transformers.js.
-  // LaMini-Flan-T5 adalah model text2text-generation (bukan chat),
-  // jadi pipeline-nya berbeda dari model generatif berbasis chat.
+  // LaMini-Flan-T5 adalah model text2text-generation (encoder-decoder).
+  // Kita tidak set dtype supaya pakai fp32 default — quantisasi (q8/q4)
+  // terbukti merusak output untuk arsitektur T5.
   async loadModel(onProgress) {
     try {
       const device = isWebGPUSupported() ? 'webgpu' : 'wasm';
@@ -32,7 +33,7 @@ export class RootFactsService {
         'text2text-generation', // Flan-T5 pakai text2text, bukan text-generation
         LLM_CONFIG.modelId,
         {
-          dtype: LLM_CONFIG.dtype,
+          // dtype tidak diset = pakai fp32 default yang paling stabil
           device,
           progress_callback: (info) => {
             if (info.status === 'progress' && info.progress != null) {
@@ -65,25 +66,25 @@ export class RootFactsService {
 
   // Buat prompt instruksi langsung (tanpa format chat).
   // Flan-T5 dilatih untuk mengikuti instruksi teks biasa dalam bahasa Inggris.
-  // Kita paksa output bahasa Inggris supaya tidak tercampur bahasa lain.
   _buildPrompt(vegetableName) {
     const toneSuffix = {
       normal: '',
-      funny: ' Use a funny and humorous tone.',
-      professional: ' Explain it like an expert teacher.',
-      casual: ' Include a historical fact or origin story.',
+      funny: ' Write it in a funny and humorous way.',
+      professional: ' Explain it like an expert scientist or teacher.',
+      casual: ' Include a historical fact or where it originally came from.',
     };
 
     const suffix = toneSuffix[this.currentTone] || '';
 
     return (
-      `Answer in English only. Describe one interesting fun fact about ${vegetableName}.${suffix} ` +
-      'Keep the answer under 60 words.'
+      `Write one interesting fun fact about ${vegetableName} in English.${suffix} ` +
+      'Maximum 60 words.'
     );
   }
 
   // Generate fun fact berdasarkan nama sayuran yang terdeteksi.
-  // Pakai greedy decoding (do_sample: false) supaya output tidak looping/ngaco.
+  // Pakai beam search (num_beams: 2) yang lebih stabil dan konsisten
+  // dibanding greedy decoding untuk model T5 kecil.
   async generateFacts(vegetableName) {
     if (!this.isReady() || this.isGenerating) return null;
 
@@ -91,12 +92,11 @@ export class RootFactsService {
     try {
       const prompt = this._buildPrompt(vegetableName);
 
-      // Flan-T5 menerima string biasa sebagai input, bukan array messages
       const output = await this.generator(prompt, {
         max_new_tokens: LLM_CONFIG.maxNewTokens,
-        do_sample: LLM_CONFIG.doSample,
+        num_beams: LLM_CONFIG.numBeams,
+        early_stopping: LLM_CONFIG.earlyStop,
         repetition_penalty: LLM_CONFIG.repetitionPenalty,
-        no_repeat_ngram_size: LLM_CONFIG.noRepeatNgramSize,
       });
 
       // Output text2text-generation: [{ generated_text: "..." }]
