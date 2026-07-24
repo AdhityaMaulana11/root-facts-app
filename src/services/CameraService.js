@@ -15,23 +15,19 @@ export class CameraService {
     this.canvas = canvasElement;
   }
 
-  // Ambil daftar semua kamera yang tersedia di perangkat.
-  // Kita perlu minta izin dulu biar browser mau kasih nama kameranya —
-  // tanpa ini, label kamera biasanya kosong, terutama di HP.
   async loadCameras() {
     try {
-      // Minta stream sementara supaya browser "buka kunci" nama-nama kamera
+      // Request stream dulu supaya browser mau buka label nama kameranya
       let tempStream = null;
       try {
         tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       } catch {
-        // Kalau izin ditolak atau tidak ada kamera, tetap lanjut enumerasi
+        // Kalau ditolak pun lanjut aja, mungkin labelnya kosong tapi tetap bisa enumerate
       }
 
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter((d) => d.kind === 'videoinput');
 
-      // Matikan stream sementara tadi, sudah tidak diperlukan
       if (tempStream) {
         tempStream.getTracks().forEach((t) => t.stop());
       }
@@ -44,15 +40,8 @@ export class CameraService {
     }
   }
 
-  // Mulai kamera berdasarkan ID perangkat atau mode tampilan.
-  // Parameter selectedCameraId bisa berupa:
-  //   - deviceId spesifik dari hasil enumerateDevices (desktop/HP)
-  //   - 'user'        → kamera depan (HP/tablet)
-  //   - 'environment' → kamera belakang (HP/tablet)
-  //   - 'default'     → biarkan browser yang pilih
   async startCamera(selectedCameraId) {
     try {
-      // Hentikan stream lama dulu kalau masih jalan
       if (this.stream) {
         this.stopCamera();
       }
@@ -65,7 +54,7 @@ export class CameraService {
         selectedCameraId !== 'user' &&
         selectedCameraId !== 'environment'
       ) {
-        // Pakai deviceId eksak — cocok untuk desktop maupun HP
+        // deviceId spesifik — untuk desktop atau HP yang sudah ter-enumerate
         constraints = {
           video: {
             deviceId: { exact: selectedCameraId },
@@ -75,7 +64,7 @@ export class CameraService {
           audio: false,
         };
       } else if (selectedCameraId === 'user' || selectedCameraId === 'environment') {
-        // Pakai facingMode untuk pilih kamera depan/belakang di HP
+        // facingMode untuk kamera depan/belakang di HP dan tablet
         constraints = {
           video: {
             facingMode: selectedCameraId,
@@ -85,7 +74,6 @@ export class CameraService {
           audio: false,
         };
       } else {
-        // Biarkan browser pilih kamera mana saja yang tersedia
         constraints = {
           video: {
             width: { ideal: 1280 },
@@ -113,7 +101,6 @@ export class CameraService {
     }
   }
 
-  // Matikan kamera dan bersihkan semua resource-nya
   stopCamera() {
     if (this.stream) {
       this.stream.getTracks().forEach((track) => track.stop());
@@ -124,19 +111,16 @@ export class CameraService {
     }
   }
 
-  // Simpan nilai FPS yang dipakai oleh detection loop
   setFPS(fps) {
     this.fps = fps;
   }
 
-  // Cek apakah stream kamera sedang aktif
   isActive() {
     return !!(
       this.stream && this.stream.getTracks().some((t) => t.readyState === 'live')
     );
   }
 
-  // Cek apakah elemen video sudah siap dipakai untuk inferensi
   isReady() {
     return !!(
       this.video &&

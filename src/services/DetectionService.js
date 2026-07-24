@@ -9,11 +9,9 @@ export class DetectionService {
     this.backendUsed = null;
   }
 
-  // Muat model TensorFlow dan metadata label dari folder /model.
-  // Sebelum load, kita cek dulu apakah browser support WebGPU —
-  // kalau iya, pakai WebGPU; kalau tidak, fallback ke WebGL.
   async loadModel(onProgress) {
     try {
+      // Coba WebGPU dulu, kalau gagal fallback ke WebGL
       if (isWebGPUSupported()) {
         try {
           await import('@tensorflow/tfjs-backend-webgpu');
@@ -36,7 +34,7 @@ export class DetectionService {
 
       onProgress && onProgress(20);
 
-      // Load model dan metadata secara bersamaan biar lebih cepat
+      // Load model dan metadata sekaligus
       const [model, metaResponse] = await Promise.all([
         tf.loadLayersModel('/model/model.json', {
           onProgress: (fraction) => {
@@ -68,16 +66,14 @@ export class DetectionService {
     }
   }
 
-  // Jalankan prediksi pada frame video yang diberikan.
-  // Semua tensor dibungkus tf.tidy() supaya memori otomatis dibersihkan
-  // setelah selesai — penting biar browser tidak lemot setelah pakai lama.
   async predict(imageElement) {
     if (!this.isLoaded() || !imageElement) return null;
 
+    // tf.tidy() penting untuk cegah memory leak di loop deteksi
     return tf.tidy(() => {
       const imageSize = this.config?.imageSize || 224;
 
-      // Ubah frame jadi tensor, resize, lalu normalisasi ke rentang [-1, 1]
+      // Resize dan normalisasi ke [-1, 1] sesuai format training
       const tensor = tf.browser
         .fromPixels(imageElement)
         .resizeBilinear([imageSize, imageSize])
@@ -89,7 +85,6 @@ export class DetectionService {
       const predictions = this.model.predict(tensor);
       const scores = predictions.dataSync();
 
-      // Cari label dengan skor tertinggi
       let maxScore = 0;
       let maxIndex = 0;
       for (let i = 0; i < scores.length; i++) {
@@ -112,7 +107,6 @@ export class DetectionService {
     });
   }
 
-  // Cek apakah model sudah ter-load dan siap dipakai
   isLoaded() {
     return !!(this.model && this.labels.length > 0);
   }
