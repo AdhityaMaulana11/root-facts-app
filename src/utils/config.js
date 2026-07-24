@@ -26,12 +26,13 @@ export const TONE_CONFIG = {
   defaultTone: 'normal',
 };
 
-// Konfigurasi model bahasa yang dipakai untuk generate fun fact
+// Konfigurasi model bahasa yang dipakai untuk generate fun fact.
+// Sengaja pakai model kecil (77M param) supaya unduhan cepat dan tetap ringan di browser.
 export const LLM_CONFIG = {
-  modelId: 'Xenova/TinyLlama-1.1B-Chat-v1.0',
-  dtype: 'q4', // quantized 4-bit biar ringan di browser
-  maxNewTokens: 120,
-  temperature: 0.8,
+  modelId: 'Xenova/LaMini-Flan-T5-77M',
+  dtype: 'q8',       // quantized 8-bit — lebih kecil tapi kualitas tetap oke
+  maxNewTokens: 100, // cukup untuk satu paragraf pendek
+  temperature: 0.7,
   topP: 0.9,
   doSample: true,
 };
