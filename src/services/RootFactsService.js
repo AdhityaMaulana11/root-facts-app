@@ -40,7 +40,8 @@ export class RootFactsService {
               fileProgress[info.name || 'main'] = info.progress;
               const values = Object.values(fileProgress);
               const avg = values.reduce((a, b) => a + b, 0) / values.length;
-              onProgress && onProgress(10 + Math.round(avg * 88));
+              // info.progress adalah 0-100 (persen), bukan 0-1, jadi kalikan 0.88
+              onProgress && onProgress(10 + Math.round(avg * 0.88));
             }
           },
         }
