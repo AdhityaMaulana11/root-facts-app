@@ -24,10 +24,10 @@ export class RootFactsService {
 
       onProgress && onProgress(10);
 
-      // Track progress per file supaya persentase tidak naik-turun.
-      // Transformers.js mengunduh banyak file paralel (tokenizer, weights, dll),
-      // tiap file laporkan progress 0-1 masing-masing. Kita rata-rata semuanya.
+      // Track progress per file supaya lebih akurat saat banyak file diunduh paralel.
+      // lastProgress dipakai supaya angka hanya bisa naik, tidak pernah turun.
       const fileProgress = {};
+      let lastProgress = 10;
 
       this.generator = await pipeline(
         'text2text-generation', // Flan-T5 pakai text2text, bukan text-generation
@@ -41,7 +41,12 @@ export class RootFactsService {
               const values = Object.values(fileProgress);
               const avg = values.reduce((a, b) => a + b, 0) / values.length;
               // info.progress adalah 0-100 (persen), bukan 0-1, jadi kalikan 0.88
-              onProgress && onProgress(10 + Math.round(avg * 0.88));
+              const next = 10 + Math.round(avg * 0.88);
+              // Hanya update kalau nilainya lebih besar — progress tidak boleh mundur
+              if (next > lastProgress) {
+                lastProgress = next;
+                onProgress && onProgress(lastProgress);
+              }
             }
           },
         }
